@@ -90,7 +90,7 @@ void setup() {
   tft.setTextSize(1);
   tft.setTextColor(TFT_YELLOW);
   tft.setCursor(30,102);
-  tft.print ("WiFi sniffer");
+  tft.print (F("WiFi sniffer"));
 
 //LCD backlit fading on
   for (uint16_t bcklt=0; bcklt<4095; bcklt+=20){

@@ -81,7 +81,7 @@ int register_client(clientinfo ci){
 void print_beacon(beaconinfo beacon){
   String toPrint = "";
   if (beacon.err != 0) {
-    //GUIobj->printConsole (F("Beacon error"), TFT_RED, 0, 0);
+    GUIobj->printConsole (F("Beacon error"), TFT_RED, 0, 0);
   } else {
     toPrint+=(String)beacon.ssid;
     toPrint+=F("                      ");
@@ -120,7 +120,7 @@ void print_client(clientinfo ci){
     }
 
     if (!known)  {
-      //GUIobj->printConsole (F("Unknown/Malformed packet"), TFT_RED, 0, 0);
+      GUIobj->printConsole (F("Unknown/Malformed packet"), TFT_RED, 0, 0);
       //  for (int i = 0; i < 6; i++) Serial.printf("%02x", ci.bssid[i]);
     } 
     else {
@@ -138,8 +138,8 @@ void print_client(clientinfo ci){
         toPrint2+=String(ci.ap[i],HEX);}
     }
   }
- GUIobj->printConsole(capitaliseString(toPrint), TFT_GREEN, 0, 0);
- GUIobj->printConsole(capitaliseString(toPrint2), TFT_BLUE, 0, 0);
+ if (toPrint!="")GUIobj->printConsole(capitaliseString(toPrint), TFT_GREEN, 0, 0);
+ if (toPrint2!="")GUIobj->printConsole(capitaliseString(toPrint2), TFT_BLUE, 0, 0);
 }
 
 void promisc_cb(uint8_t *buf, uint16_t len){
