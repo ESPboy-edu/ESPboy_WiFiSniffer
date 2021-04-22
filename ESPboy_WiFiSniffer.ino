@@ -13,7 +13,6 @@ based on ESP8266 mini-sniff by Ray Burnette http://www.hackster.io/rayburne/proj
 
 #include "ESPboyLogo.h"
 #include "ESPboyGUI.h"
-#include "ESPboyOTA.h"
 #include "ESPboy_LED.h"
 
 #define disable 0
@@ -43,7 +42,6 @@ Adafruit_MCP23017 mcp;
 ESPboyLED myled;
 TFT_eSPI tft;
 ESPboyGUI* GUIobj = NULL;
-ESPboyOTA* OTAobj = NULL;
 
 uint8_t channel = 1;
 
@@ -101,9 +99,7 @@ void setup() {
   dac.setVoltage(4095, false);
   tft.fillScreen(TFT_BLACK);
 
-//OTA init
   GUIobj = new ESPboyGUI(&tft, &mcp);
-  if (GUIobj->getKeys()) OTAobj = new ESPboyOTA(GUIobj);  
 
 //Init WiFi
   GUIobj -> toggleDisplayMode(1); 
