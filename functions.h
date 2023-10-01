@@ -12,7 +12,7 @@ extern "C" {
 
 #include <ESP8266WiFi.h>
 #include "./structures.h"
-#include "ESPboyGUI.h"
+#include "lib/ESPboyTerminalGUI.h"
 
 #define MAX_APS_TRACKED 100
 #define MAX_CLIENTS_TRACKED 200
@@ -23,7 +23,7 @@ int nothing_new = 0;
 clientinfo clients_known[MAX_CLIENTS_TRACKED];            // Array to save MACs of known CLIENTs
 int clients_known_count = 0;                              // Number of known CLIENTs
 
-extern ESPboyGUI* GUIobj;
+extern ESPboyTerminalGUI* GUIobj;
 
 
 String capitaliseString(String str){

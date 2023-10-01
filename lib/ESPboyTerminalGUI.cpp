@@ -1,24 +1,19 @@
 /*
-ESPboyGUI class
+ESPboyTerminalGUI class
 for www.ESPboy.com project by RomanS
 https://hackaday.io/project/164830-espboy-games-iot-stem-for-education-fun
+v2.1
 */
 
-#include "ESPboyGUI.h"
-#define SOUNDPIN D3
+#include "ESPboyTerminalGUI.h"
 
-const uint8_t ESPboyGUI::keybOnscr[2][3][21] PROGMEM = {
+const uint8_t ESPboyTerminalGUI::keybOnscr[2][3][21] PROGMEM = {
  {"+1234567890abcdefghi", "jklmnopqrstuvwxyz -=", "?!@$%&*()_[]\":;.,^<E",},
  {"+1234567890ABCDEFGHI", "JKLMNOPQRSTUVWXYZ -=", "?!@$%&*()_[]\":;.,^<E",}
 };
 
-String *ESPboyGUI::consoleStrings;
-uint16_t *ESPboyGUI::consoleStringsColor;
 
-
-ESPboyGUI::ESPboyGUI(TFT_eSPI *tftGUI, Adafruit_MCP23017 *mcpGUI) {
-   consoleStrings = new String[GUI_MAX_CONSOLE_STRINGS+1];
-   consoleStringsColor = new uint16_t[GUI_MAX_CONSOLE_STRINGS+1];
+ESPboyTerminalGUI::ESPboyTerminalGUI(TFT_eSPI *tftGUI, ESPboyMCP *mcpGUI) {
    keybParam.renderLine = 0;
    keybParam.displayMode = 0;
    keybParam.shiftOn = 0;
@@ -36,11 +31,14 @@ ESPboyGUI::ESPboyGUI(TFT_eSPI *tftGUI, Adafruit_MCP23017 *mcpGUI) {
    u8f->setFontDirection(0);            // left to right
    u8f->setFont(u8g2_font_4x6_t_cyrillic); 
 #endif
+   consoleStringsVector.push_back(consoleStringS());
+   consoleStringsVector.back().consoleString = "";
+   consoleStringsVector.back().consoleStringColor = TFT_BLACK;
    toggleDisplayMode(1);
 }
 
 
-uint8_t ESPboyGUI::keysAction() {
+uint8_t ESPboyTerminalGUI::keysAction() {
   uint8_t longActPress = 0;
   uint8_t keyState = getKeys();
 
@@ -64,18 +62,17 @@ uint8_t ESPboyGUI::keysAction() {
         if ((keyState & GUI_PAD_DOWN) && keybParam.selY == 3) keybParam.selY = 0;
       }
 
-      if ((keyState & GUI_PAD_ACT && keyState & GUI_PAD_ESC) ||
-          (keyState & GUI_PAD_RGT && keyState & GUI_PAD_LFT)) {
-        if (keybParam.renderLine > GUI_MAX_CONSOLE_STRINGS - GUI_MAX_STRINGS_ONSCREEN_FULL)
-          keybParam.renderLine = GUI_MAX_CONSOLE_STRINGS - GUI_MAX_STRINGS_ONSCREEN_FULL;
+      if ((keyState&GUI_PAD_ACT && keyState&GUI_PAD_ESC) || (keyState&GUI_PAD_RGT && keyState&GUI_PAD_LFT)) {
+        if (keybParam.renderLine > consoleStringsVector.size() - GUI_MAX_STRINGS_ONSCREEN_FULL)
+          keybParam.renderLine = consoleStringsVector.size() - GUI_MAX_STRINGS_ONSCREEN_FULL;
         toggleDisplayMode(1);
         waitKeyUnpressed();
-      } else if (keyState & GUI_PAD_RGT && keybParam.renderLine) {
+        
+      } else if (keyState&GUI_PAD_RGT && keybParam.renderLine) {
         keybParam.renderLine--;
         drawConsole(0);
-      } else if (keyState & GUI_PAD_LFT &&
-                 keybParam.renderLine <
-                     GUI_MAX_CONSOLE_STRINGS - GUI_MAX_STRINGS_ONSCREEN_SMALL) {
+        
+      } else if (keyState&GUI_PAD_LFT && keybParam.renderLine < consoleStringsVector.size() - GUI_MAX_STRINGS_ONSCREEN_SMALL) {
         keybParam.renderLine++;
         drawConsole(0);
       }
@@ -98,36 +95,33 @@ uint8_t ESPboyGUI::keysAction() {
       }
 
       if (keyState & GUI_PAD_ESC) {
-        if (waitKeyUnpressed() > GUI_KEY_PRESSED_DELAY_TO_SEND)
+        if (waitKeyUnpressed() > GUI_KEY_PRESSED_DELAY_TO_SEND){
           keybParam.typing = "";
+          longActPress=1;
+          }
         else if (keybParam.typing.length() > 0)
           keybParam.typing.remove(keybParam.typing.length() - 1);
       }
     }
 
     else {
-      if ((keyState & GUI_PAD_ACT && keyState & GUI_PAD_ESC) ||
-          (keyState & GUI_PAD_RGT && keyState & GUI_PAD_LFT)) {
+      if ((keyState & GUI_PAD_ACT && keyState & GUI_PAD_ESC) || (keyState & GUI_PAD_RGT && keyState & GUI_PAD_LFT)) {
         toggleDisplayMode(0);
         waitKeyUnpressed();
       } else
 
-          if (((keyState & GUI_PAD_RGT || keyState & GUI_PAD_RIGHT ||
-                keyState & GUI_PAD_DOWN)) &&
-              keybParam.renderLine > 0) {
-        keybParam.renderLine--;
-        drawConsole(0);
-      } else
+          if (((keyState & GUI_PAD_RGT || keyState & GUI_PAD_RIGHT || keyState & GUI_PAD_DOWN)) && keybParam.renderLine > 0) {
+            keybParam.renderLine--;
+            drawConsole(0);
+          } else
 
-          if (((keyState & GUI_PAD_LFT || keyState & GUI_PAD_LEFT ||
-                keyState & GUI_PAD_UP)) &&
-              keybParam.renderLine < GUI_MAX_CONSOLE_STRINGS - GUI_MAX_STRINGS_ONSCREEN_FULL) {
+          if (((keyState&GUI_PAD_LFT || keyState & GUI_PAD_LEFT || keyState&GUI_PAD_UP)) && keybParam.renderLine < consoleStringsVector.size() - GUI_MAX_STRINGS_ONSCREEN_FULL) {
         keybParam.renderLine++;
         drawConsole(0);
       } else
 
           if (keyState & GUI_PAD_ESC)
-        toggleDisplayMode(0);
+            toggleDisplayMode(0);
     }
     if (!keybParam.displayMode) drawKeyboard(keybParam.selX, keybParam.selY, 1);
   }
@@ -136,7 +130,7 @@ uint8_t ESPboyGUI::keysAction() {
   return (longActPress);
 }
 
-void ESPboyGUI::toggleDisplayMode(uint8_t mode) {
+void ESPboyTerminalGUI::toggleDisplayMode(uint8_t mode) {
   keybParam.displayMode = mode;
   tft->fillScreen(TFT_BLACK);
   tft->drawRect(0, 0, 128, 128, TFT_NAVY);
@@ -150,20 +144,44 @@ void ESPboyGUI::toggleDisplayMode(uint8_t mode) {
   drawConsole(0);
 }
 
-String ESPboyGUI::getUserInput() {
+String ESPboyTerminalGUI::getUserInput() {
   String userInput;
   toggleDisplayMode(0);
-  while (1) {
+  //while (1) {
     while (!keysAction()) delay(GUI_KEYB_CALL_DELAY);
-    if (keybParam.typing != "") break;
-  }
+  //  if (keybParam.typing != "") break;
+  //}
   toggleDisplayMode(1);
   userInput = keybParam.typing;
   keybParam.typing = "";
   return (userInput);
 }
 
-void ESPboyGUI::printConsole(String bfrstr, uint16_t color, uint8_t ln, uint8_t noAddLine) {
+void ESPboyTerminalGUI::doScroll(){
+  uint8_t keyState=0;
+  #ifdef buttonclicks
+    tone(SOUNDPIN, 100, 10);
+  #endif
+  toggleDisplayMode(1);
+ // while (!(keyState & GUI_PAD_ESC)){
+    delay(1);
+    keyState = getKeys();
+    if(keyState){
+      if (keyState&GUI_PAD_RGT && keybParam.renderLine) {
+        keybParam.renderLine--;}    
+      if (keyState&GUI_PAD_LFT && keybParam.renderLine < consoleStringsVector.size() - GUI_MAX_STRINGS_ONSCREEN_SMALL) {
+        keybParam.renderLine++;}
+      drawConsole(0);
+      #ifdef buttonclicks
+      tone(SOUNDPIN, 100, 10);
+      #endif
+      delay(GUI_KEYB_CALL_DELAY);
+    }
+  //} 
+}
+
+
+void ESPboyTerminalGUI::printConsole(String bfrstr, uint16_t color, uint8_t ln, uint8_t noAddLine) {
   String toprint;
 
   keybParam.renderLine = 0;
@@ -171,86 +189,89 @@ void ESPboyGUI::printConsole(String bfrstr, uint16_t color, uint8_t ln, uint8_t 
   if(bfrstr == "") bfrstr = " ";
   
   if (!ln)
-    if (bfrstr.length() > (128-4)/GUI_FONT_WIDTH) {
-      bfrstr = bfrstr.substring(0, (128-4)/GUI_FONT_WIDTH);
+    if (bfrstr.length() > ((128-4)/GUI_FONT_WIDTH)) {
+      bfrstr = bfrstr.substring(0, ((128-4)/GUI_FONT_WIDTH));
       toprint = bfrstr;
-    }
-
-  for (uint8_t i = 0; i <= ((bfrstr.length()-1) / ((128-2)/GUI_FONT_WIDTH)); i++) {
-    toprint = bfrstr.substring(i * (128-2)/GUI_FONT_WIDTH);
-    toprint = toprint.substring(0, (128-2)/GUI_FONT_WIDTH);
-
-    if (!noAddLine) {
-      for (uint8_t j = 0; j < GUI_MAX_CONSOLE_STRINGS; j++) {
-        consoleStrings[j] = consoleStrings[j + 1];
-        consoleStringsColor[j] = consoleStringsColor[j + 1];
-      }
-    }
-
-    consoleStrings[GUI_MAX_CONSOLE_STRINGS] = toprint;
-    consoleStringsColor[GUI_MAX_CONSOLE_STRINGS] = color;
+      toprint.trim();
   }
-  drawConsole(noAddLine);
-}
 
-
-
-void ESPboyGUI::drawConsole(uint8_t onlyLastLine) {
-  uint8_t lines;
-  uint8_t offsetY;
+  uint16_t traskStr=0;
+  for (uint8_t i = 0; i <= ((bfrstr.length()-1) / ((128-4)/GUI_FONT_WIDTH)); i++) {
+    toprint = bfrstr.substring(traskStr);
+    toprint = toprint.substring(0, (128-4)/GUI_FONT_WIDTH);
+    traskStr += (128-4)/GUI_FONT_WIDTH;
+    toprint.trim();
+    if (!noAddLine) consoleStringsVector.push_back(consoleStringS());
+    consoleStringsVector.back().consoleString = toprint;
+    consoleStringsVector.back().consoleStringColor = color;
+  }
   
-  if (keybParam.displayMode)
-    lines = GUI_MAX_STRINGS_ONSCREEN_FULL;
-  else
-    lines = GUI_MAX_STRINGS_ONSCREEN_SMALL;
-
-#ifdef U8g2
-  if (!onlyLastLine)
-    tft->fillRect(1, 1, 126, lines * GUI_FONT_HEIGHT, TFT_BLACK);
-  else
-    tft->fillRect(1, (lines-1) * GUI_FONT_HEIGHT, 126, GUI_FONT_HEIGHT, TFT_BLACK);
-#else
-  if (!onlyLastLine)
-    tft->fillRect(1, 1, 126, lines * GUI_FONT_HEIGHT+2, TFT_BLACK);
-  else
-    tft->fillRect(1, (lines-1) * GUI_FONT_HEIGHT+4, 126, GUI_FONT_HEIGHT, TFT_BLACK);
-#endif
-
-  offsetY = GUI_FONT_HEIGHT;
-  if (!onlyLastLine) {
-    for (uint8_t i = GUI_MAX_CONSOLE_STRINGS - lines - keybParam.renderLine + 1; i < GUI_MAX_CONSOLE_STRINGS - keybParam.renderLine + 1; i++) {
-#ifndef U8g2
-      tft->setTextColor(consoleStringsColor[i], TFT_BLACK);
-      tft->drawString(consoleStrings[i], 4, offsetY - 4);
-#else
-      u8f->setForegroundColor(consoleStringsColor[i]);
-      u8f->drawStr(3, offsetY, consoleStrings[i].c_str());
-#endif
-      offsetY += GUI_FONT_HEIGHT;
-    }
-  } else {
-#ifndef U8g2
-    tft->setTextColor(consoleStringsColor[GUI_MAX_CONSOLE_STRINGS], TFT_BLACK);
-    tft->drawString(consoleStrings[GUI_MAX_CONSOLE_STRINGS], 4, GUI_FONT_HEIGHT * lines - 4);
-#else
-    u8f->setForegroundColor(consoleStringsColor[GUI_MAX_CONSOLE_STRINGS]);
-    u8f->drawStr(3, GUI_FONT_HEIGHT * lines, consoleStrings[GUI_MAX_CONSOLE_STRINGS].c_str());
-#endif
+  drawConsole(noAddLine);
+  
+  while (consoleStringsVector.size() > GUI_MAX_CONSOLE_STRINGS){
+    consoleStringsVector.erase(consoleStringsVector.begin());
+    consoleStringsVector.shrink_to_fit();
   }
 }
 
 
-uint8_t ESPboyGUI::getKeys() { return (~mcp->readGPIOAB() & 255); }
+
+void ESPboyTerminalGUI::drawConsole(uint8_t onlyLastLine) {
+  uint16_t lines;
+  uint16_t offsetY;
+  uint16_t quantityLinesToDraw;
+  int16_t startVectorToDraw;
+  
+  if (keybParam.displayMode) lines = GUI_MAX_STRINGS_ONSCREEN_FULL;
+  else lines = GUI_MAX_STRINGS_ONSCREEN_SMALL;
 
 
-uint32_t ESPboyGUI::waitKeyUnpressed() {
+#ifndef U8g2
+  if (!onlyLastLine) tft->fillRect(1, 4, 126, lines * GUI_FONT_HEIGHT, TFT_BLACK);
+  else tft->fillRect(1, (lines-1) * GUI_FONT_HEIGHT+4, 126, GUI_FONT_HEIGHT, TFT_BLACK);
+#else
+  if (!onlyLastLine) tft->fillRect(1, 1, 126, lines * GUI_FONT_HEIGHT, TFT_BLACK);
+  else tft->fillRect(1, (lines-1) * GUI_FONT_HEIGHT, 126, GUI_FONT_HEIGHT+1, TFT_BLACK);
+#endif  
+
+
+#ifndef U8g2
+  offsetY = lines * GUI_FONT_HEIGHT - 4;
+#else
+  offsetY = lines * GUI_FONT_HEIGHT;
+#endif  
+
+  if(consoleStringsVector.size() < lines ) quantityLinesToDraw = consoleStringsVector.size();
+  else quantityLinesToDraw = lines;
+
+  startVectorToDraw = consoleStringsVector.size()-1-keybParam.renderLine;
+  
+  for (uint8_t i = 0; i< quantityLinesToDraw; i++) {
+#ifndef U8g2
+    tft->setTextColor(consoleStringsVector[startVectorToDraw].consoleStringColor, TFT_BLACK);
+    tft->drawString(consoleStringsVector[startVectorToDraw].consoleString, 3, offsetY);
+#else
+    u8f->setForegroundColor(consoleStringsVector[startVectorToDraw].consoleStringColor);
+    u8f->drawStr(2, offsetY, consoleStringsVector[startVectorToDraw].consoleString.c_str());
+#endif
+    offsetY -= GUI_FONT_HEIGHT;
+    startVectorToDraw--;
+    if(startVectorToDraw<0) startVectorToDraw=0;
+  } 
+}
+
+
+uint8_t ESPboyTerminalGUI::getKeys() { return (~mcp->readGPIOAB() & 255); }
+
+
+uint32_t ESPboyTerminalGUI::waitKeyUnpressed() {
   uint32_t timerStamp = millis();
   while (getKeys() && (millis() - timerStamp) < GUI_KEY_UNPRESSED_TIMEOUT) delay(1);
   return (millis() - timerStamp);
 }
 
 
-void ESPboyGUI::drawKeyboard(uint8_t slX, uint8_t slY, uint8_t onlySelected) {
+void ESPboyTerminalGUI::drawKeyboard(uint8_t slX, uint8_t slY, uint8_t onlySelected) {
   static char chr[2]={0,0};
   static uint8_t prevX = 0, prevY = 0;
 
@@ -282,7 +303,7 @@ void ESPboyGUI::drawKeyboard(uint8_t slX, uint8_t slY, uint8_t onlySelected) {
 }
 
 
-void ESPboyGUI::drawTyping(uint8_t changeCursor) {
+void ESPboyTerminalGUI::drawTyping(uint8_t changeCursor) {
   static char cursorType[2] = {220, '_'};
   static uint8_t cursorTypeFlag=0;
 
@@ -297,7 +318,19 @@ void ESPboyGUI::drawTyping(uint8_t changeCursor) {
   }
 }
 
-void ESPboyGUI::drawBlinkingCursor() {
+
+void ESPboyTerminalGUI::drawOwnTypingLine(String typingLine, uint16_t colorLine){
+  keybParam.typing = typingLine;
+  toggleDisplayMode(0);
+  keybParam.typing = typingLine;
+  tft->fillRect(1, 128 - 5 * 8, 126, 10, TFT_BLACK);
+  tft->setTextColor(colorLine, TFT_BLACK);
+  tft->drawString(keybParam.typing, 4, 128 - 5 * 8 + 1);
+}
+
+
+
+void ESPboyTerminalGUI::drawBlinkingCursor() {
  static uint32_t cursorBlinkMillis = 0; 
   if (millis() > (cursorBlinkMillis + GUI_CURSOR_BLINKING_PERIOD)) {
     cursorBlinkMillis = millis();
@@ -306,6 +339,6 @@ void ESPboyGUI::drawBlinkingCursor() {
 }
 
 
-void ESPboyGUI::SetKeybParamTyping(String str){
+void ESPboyTerminalGUI::SetKeybParamTyping(String str){
   keybParam.typing = str;
 }

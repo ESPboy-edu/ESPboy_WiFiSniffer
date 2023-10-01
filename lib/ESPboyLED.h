@@ -2,22 +2,25 @@
 ESPboy LED class
 for www.ESPboy.com project by RomanS
 */
+#pragma once
 
 #include <Arduino.h>
+#include "ESPboyMCP.h" //to control LED lock
 
 #ifndef ESPboy_LED
 #define ESPboy_LED
 
 #define LEDPIN D4
-
+#define LEDLOCK 9
 
 class ESPboyLED{
 private:
+  ESPboyMCP *mcp; 
   uint8_t LEDr, LEDg, LEDb, LEDflagOnOff;
   void ledset(uint8_t rled, uint8_t gled, uint8_t bled);
   
 public: 
-  void begin();
+  void begin(ESPboyMCP *mcpGUI);
   void off();
   void on();
   uint8_t getState();

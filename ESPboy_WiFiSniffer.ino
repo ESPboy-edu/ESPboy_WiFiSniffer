@@ -7,99 +7,35 @@ based on ESP8266 mini-sniff by Ray Burnette http://www.hackster.io/rayburne/proj
 
 #include <ESP8266WiFi.h>
 #include "./functions.h"
-#include <TFT_eSPI.h>          //to draw at LCD TFT
-#include <Adafruit_MCP23017.h> //to control buttons
-#include <Adafruit_MCP4725.h>  //to control the LCD display backlit
+#include "lib/ESPboyInit.h"
+#include "lib/ESPboyInit.cpp"
+#include "lib/ESPboyTerminalGUI.h"
+#include "lib/ESPboyTerminalGUI.cpp"
+//#include "lib/ESPboyOTA2.h"
+//#include "lib/ESPboyOTA2.cpp"
 
-#include "ESPboyLogo.h"
-#include "ESPboyGUI.h"
-#include "ESPboy_LED.h"
 
 #define disable 0
 #define enable  1
 
-#define PAD_LEFT        0x01
-#define PAD_UP          0x02
-#define PAD_DOWN        0x04
-#define PAD_RIGHT       0x08
-#define PAD_ACT         0x10
-#define PAD_ESC         0x20
-#define PAD_LFT         0x40
-#define PAD_RGT         0x80
-#define PAD_ANY         0xff
-
-//PINS
-#define LEDPIN         D4
-#define SOUNDPIN       D3
-#define LEDLOCK        9
-#define CSTFTPIN       8 //Chip Select pin for LCD (it's on the MCP23017 GPIO expander GPIO8)
-
-#define MCP23017address 0 // actually it's 0x20 but in <Adafruit_MCP23017.h> lib there is (x|0x20) :)
-#define MCP4725address  0x60
-
-Adafruit_MCP4725 dac;
-Adafruit_MCP23017 mcp;
-ESPboyLED myled;
-TFT_eSPI tft;
-ESPboyGUI* GUIobj = NULL;
+ESPboyInit myESPboy;
+ESPboyTerminalGUI* GUIobj = NULL;
+//ESPboyTerminalGUI *terminalGUIobj = NULL;
+//ESPboyOTA2 *OTA2obj = NULL;
 
 uint8_t channel = 1;
 
 
 void setup() {
-  Serial.begin(115200); //serial init
-
-//DAC init and backlit off
-  dac.begin(MCP4725address);
-  delay (100);
-  dac.setVoltage(0, false);
-
-//mcp23017 init for buttons, LED LOCK and TFT Chip Select pins
-  mcp.begin(MCP23017address);
-  delay(100);
-  
-  for (int i=0;i<8;i++){  
-     mcp.pinMode(i, INPUT);
-     mcp.pullUp(i, HIGH);}
-
-//LED init
-  mcp.pinMode(LEDLOCK, OUTPUT);
-  mcp.digitalWrite(LEDLOCK, HIGH); 
-  myled.begin();
-
-//sound init and test
-  pinMode(SOUNDPIN, OUTPUT);
-  tone(SOUNDPIN, 200, 100); 
-  delay(100);
-  tone(SOUNDPIN, 100, 100);
-  delay(100);
-  noTone(SOUNDPIN);
-  
-//LCD TFT init
-  mcp.pinMode(CSTFTPIN, OUTPUT);
-  mcp.digitalWrite(CSTFTPIN, LOW);
-  tft.begin();
-  delay(100);
-  tft.setRotation(0);
-  tft.fillScreen(TFT_BLACK);
-
-//draw ESPboylogo  
-  tft.drawXBitmap(30, 24, ESPboyLogo, 68, 64, TFT_YELLOW);
-  tft.setTextSize(1);
-  tft.setTextColor(TFT_YELLOW);
-  tft.setCursor(30,102);
-  tft.print (F("WiFi sniffer"));
-
-//LCD backlit fading on
-  for (uint16_t bcklt=0; bcklt<4095; bcklt+=20){
-    dac.setVoltage(bcklt, false);
-    delay(10);}
-
-//clear TFT and backlit on high
-  dac.setVoltage(4095, false);
-  tft.fillScreen(TFT_BLACK);
-
-  GUIobj = new ESPboyGUI(&tft, &mcp);
+  myESPboy.begin("WiFi sniffer");
+/*
+  //Check OTA2
+  if (myESPboy.getKeys()&PAD_ACT || myESPboy.getKeys()&PAD_ESC) { 
+     terminalGUIobj = new ESPboyTerminalGUI(&myESPboy.tft, &myESPboy.mcp);
+     OTA2obj = new ESPboyOTA2(terminalGUIobj);
+  }
+*/
+  GUIobj = new ESPboyTerminalGUI(&myESPboy.tft, &myESPboy.mcp);
 
 //Init WiFi
   GUIobj -> toggleDisplayMode(1); 
