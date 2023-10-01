@@ -10,6 +10,8 @@ v2.1
 //#define buttonclicks //if defined - button are clicking but it takes more than 1kb RAM, if commented - no clicks and more free RAM
 //!!!!!!!!!!!!!!!!!
 
+#define U8g2
+
 #ifndef ESPboy_TerminalGUI
 #define ESPboy_TerminalGUI
 
